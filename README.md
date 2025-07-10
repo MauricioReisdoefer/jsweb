@@ -1,8 +1,7 @@
 # JsWeb 🚀
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)
-![PyPI version](https://img.shields.io/pypi/v/jsweb.svg)
+[![PyPI version](https://img.shields.io/pypi/v/jsweb)](https://pypi.org/project/jsweb/)
 
 [![GitHub](https://img.shields.io/badge/GitHub-Jones--peter-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Jones-peter)
 [![Instagram](https://img.shields.io/badge/Instagram-jones__peter__-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/jones_peter__/)
