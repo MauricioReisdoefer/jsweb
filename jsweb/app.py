@@ -1,3 +1,4 @@
+from jsweb.database import init_db
 from jsweb.routing import Router
 from jsweb.request import Request
 from jsweb.static import serve_static
@@ -12,11 +13,11 @@ class JsWebApp:
     It is responsible for routing requests and is configurable.
     Database schema management should be handled by a separate CLI command.
     """
-
-    def __init__(self, static_url="/static", static_dir="static", template_dir="templates"):
+    def __init__(self, static_url="/static", static_dir="static", template_dir="templates", db_url=None):
         self.router = Router()
         self.template_filters = {}
-
+        if db_url:
+            init_db(db_url)
         # Make static and template paths configurable
         self.static_url = static_url
         self.static_dir = static_dir

@@ -5,8 +5,11 @@ import config
 import models
 # ✅ 1. Import the User model
 from models import User
+# Initialize the database connection when running the app
+from jsweb.database import DatabaseError
 
-app = JsWebApp(static_url=config.STATIC_URL, static_dir=config.STATIC_DIR, template_dir=config.TEMPLATE_FOLDER)
+app = JsWebApp(static_url=config.STATIC_URL, static_dir=config.STATIC_DIR, template_dir=config.TEMPLATE_FOLDER,
+               db_url=config.DATABASE_URL)
 
 
 @app.route("/")
@@ -19,26 +22,63 @@ def home(req):
 def add_user(req):
     """Creates a new user and saves it to the database."""
     try:
-        # Check if the user already exists to prevent errors
-        existing_user = User.first(email="john.doe@example2.com")
-        if existing_user:
-            user_data = {"id": 1, "name": "John Doe"}
-            return json(user_data)
+        name = req.query.get("name")
+        email = req.query.get("email")
 
         new_user = User(
-            name="John Doe2",
-            email="john.doe@example2.com"
+            name=name,
+            email=email
         )
         new_user.save()
-        return json(new_user.all())
+        return json(new_user.to_dict(), status=201)
+    except DatabaseError as e:
+        # Catch the specific, clean error from the database layer
+        error_response = {
+            "error": "Could not create user.",
+            "detail": str(e)
+        }
+        # Return a 409 Conflict status, which is more appropriate for duplicates
+        return json(error_response, status=409)
     except Exception as e:
-        # This will catch other potential database errors
-        return f"❌ Error adding user: {e}"
+        # Fallback for other unexpected errors
+        return json({"error": "An unexpected error occurred.", "detail": str(e)}, status=500)
+
+
+@app.route("/users/search")
+def search_users(req):
+    # Get the search term from a query parameter, e.g., /users/search?q=john
+    search_term = req.query.get("q", "")
+
+    try:
+        query = User.query().filter(User.name.ilike(f"%{search_term}%"))
+        users = query.order_by(User.name).all()
+        user_list = [user.to_dict() for user in users]
+        return json(user_list)
+
+    except DatabaseError as e:
+        return json({"error": "A database error occurred.", "detail": str(e)}, status=500)
+
+
+@app.route("/form")
+def form(req):
+    """Returns a raw HTML response with a form."""
+    return html('''
+    <h1>Submit Your Name</h1>
+    <p><a href='/search?q=hello'>Test Query Params</a></p>
+    <form method="POST" action="/submit">
+        <input name="name" placeholder="Your name" />
+        <button type="submit">Submit</button>
+    </form>
+    ''')
+
+
+# Route to handle the form submission via POST
+@app.route("/submit", methods=["POST"])
+def submit(req):
+    """Processes POST data from a form."""
+    name = req.form.get("name", "Anonymous")
+    return html(f"<h2>👋 Hello, {name}</h2>")
 
 
 if __name__ == "__main__":
-    # Initialize the database connection when running the app
-    from jsweb.database import init_db
-
-    init_db(config.DATABASE_URL)
     run(app, host=config.HOST, port=config.PORT)

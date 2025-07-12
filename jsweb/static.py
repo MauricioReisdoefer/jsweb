@@ -9,7 +9,8 @@ def serve_static(
     request_path: str, static_url: str, static_dir: str
 ) -> Tuple[Union[bytes, str], str, List[Tuple[str, str]]]:
     """
-    Serves a static file from the configured static directory.
+    Serves a static file from the configured static directory with enhanced
+    security and path handling.
 
     Args:
         request_path: The full request path (e.g., '/static/css/style.css').
@@ -19,23 +20,27 @@ def serve_static(
     Returns:
         A tuple containing the file content, status, and headers.
     """
-    # 1. Calculate the relative path of the file
-    # e.g., '/static/css/style.css' -> 'css/style.css'
-    relative_path = request_path.lstrip("/").replace(static_url.lstrip("/"), "", 1)
-    relative_path = relative_path.lstrip("/")
+    # 1. More robustly calculate the relative path of the requested file
+    # This avoids complex string replacement and is easier to read.
+    if not request_path.startswith(static_url):
+        # This case shouldn't happen if called from app.py, but it's a good safeguard.
+        return b"404 Not Found", "404 Not Found", [("Content-Type", "text/plain")]
+
+    relative_path = request_path[len(static_url) :].lstrip("/")
 
     # 2. Construct the full, absolute path to the file
-    # This prevents ambiguity with the current working directory.
     base_dir = os.path.abspath(static_dir)
-    full_path = os.path.abspath(os.path.join(base_dir, relative_path))
+    # Normalize the path to resolve any '..' or '.' segments.
+    full_path = os.path.normpath(os.path.join(base_dir, relative_path))
 
     # 3. Security Check: Prevent directory traversal attacks.
-    # Ensure the requested file path is actually inside the static directory.
+    # This is the most important security step. It ensures the final, normalized
+    # path is still safely inside the designated static directory.
     if not full_path.startswith(base_dir):
         return b"403 Forbidden", "403 Forbidden", [("Content-Type", "text/plain")]
 
-    # 4. Check if the file exists and is a file
-    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+    # 4. Check if the path points to an actual file (not a directory)
+    if not os.path.isfile(full_path):
         return b"404 Not Found", "404 Not Found", [("Content-Type", "text/plain")]
 
     # 5. Read the file and determine its MIME type
@@ -43,7 +48,12 @@ def serve_static(
         with open(full_path, "rb") as f:
             content = f.read()
     except IOError:
-        return b"500 Internal Server Error", "500 Internal Server Error", [("Content-Type", "text/plain")]
+        # This can happen due to file permission errors.
+        return (
+            b"500 Internal Server Error",
+            "500 Internal Server Error",
+            [("Content-Type", "text/plain")],
+        )
 
     content_type = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
     headers = [("Content-Type", content_type)]
