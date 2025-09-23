@@ -3,7 +3,7 @@ import os
 
 from setuptools import setup, find_packages
 
-version = "0.2.0"
+version = "1.0.0"
 
 requirements = [
     'jinja2',
@@ -47,6 +47,7 @@ setup(
         'jsweb': [
             'templates/*.html',
             'static/*.css',
+            'static/*.png',
             'project_templates/*.jinja',
         ]
     },

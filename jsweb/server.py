@@ -1,10 +1,9 @@
-from jsweb.utils import get_local_ip
-import socket
+import logging
 import time
 from wsgiref.simple_server import make_server
-import logging
-import sys
+
 from jsweb.logging_config import setup_logging
+from jsweb.utils import get_local_ip
 
 setup_logging()
 logger = logging.getLogger(__name__)
