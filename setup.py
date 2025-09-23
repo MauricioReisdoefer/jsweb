@@ -3,14 +3,7 @@ import os
 
 from setuptools import setup, find_packages
 
-with open(os.path.join("jsweb", "__init__.py"), "r") as f:
-    for line in f:
-        if line.startswith("__VERSION__ = "):
-            version = line.split("=")[1].strip().strip('\"')
-            break
-        else:
-            version = "0.2.0"
-            break
+version = "0.2.0"
 
 requirements = [
     'jinja2',
