@@ -9,8 +9,10 @@
 [![Instagram](https://img.shields.io/badge/Instagram-jones__peter__-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/jones_peter__/)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Jones--Peter-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jones-peter-121157221/)
 [![Website](https://img.shields.io/badge/Website-jonespeter.site-0078D4?style=flat-square&logo=google-chrome&logoColor=white)](https://jonespeter.site)
+[![Documentation](https://img.shields.io/badge/Documentation-jsweb--framework.site-blue?style=flat-square)](https://jsweb-framework.site/)
 
 # JsWeb: A Lightweight Python Web Framework
+[Official Documentation](https://jsweb-framework.site/)
 
 JsWeb is a minimalistic yet powerful Python web framework designed for developers who prefer a clear, explicit, and less opinionated approach to building web applications. It provides essential tools for routing, request/response handling, authentication, forms, and database integration, allowing you to build robust applications with a clear understanding of each component.
 
@@ -494,4 +496,4 @@ The `jsweb` command-line interface provides tools for managing your project.
 *   **`jsweb db prepare [-m "message"]`**: Detects model changes and generates a new Alembic migration script.
 *   **`jsweb db upgrade`**: Applies all pending database migrations.
 
-This documentation covers the main features of the JsWeb framework. For more detailed usage, refer to the individual module docstrings and examples within the codebase.
+This documentation covers the main features of the JsWeb framework. For more detailed usage, refer to the [official documentation](https://jsweb-framework.site/), individual module docstrings, and examples within the codebase.
