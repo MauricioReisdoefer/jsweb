@@ -1,6 +1,7 @@
 from jsweb.app import *
 from jsweb.server import *
 from jsweb.response import *
+from jsweb.request import UploadedFile
 from jsweb.auth import login_required, login_user, logout_user, get_current_user
 from jsweb.security import generate_password_hash, check_password_hash
 from jsweb.forms import *

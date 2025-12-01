@@ -60,3 +60,67 @@ class EqualTo:
             if message is None:
                 message = f"Field must be equal to {self.fieldname}."
             raise ValidationError(message)
+
+class FileRequired:
+    """Checks that a file has been uploaded."""
+    def __init__(self, message="File is required."):
+        self.message = message
+
+    def __call__(self, form, field):
+        if not field.data:
+            raise ValidationError(self.message)
+
+class FileAllowed:
+    """Validates that the uploaded file has an allowed extension."""
+    def __init__(self, allowed_extensions, message=None):
+        self.allowed_extensions = [ext.lower() for ext in allowed_extensions]
+        self.message = message
+
+    def __call__(self, form, field):
+        if not field.data:
+            return  # No file uploaded, let FileRequired handle it
+
+        filename = getattr(field.data, 'filename', None)
+        if not filename:
+            raise ValidationError("Invalid file data.")
+
+        # Extract file extension
+        if '.' not in filename:
+            ext = ''
+        else:
+            ext = filename.rsplit('.', 1)[1].lower()
+
+        if ext not in self.allowed_extensions:
+            message = self.message
+            if message is None:
+                message = f"File type not allowed. Allowed types: {', '.join(self.allowed_extensions)}"
+            raise ValidationError(message)
+
+class FileSize:
+    """Validates that the uploaded file size is within limits."""
+    def __init__(self, max_size=None, min_size=None, message=None):
+        self.max_size = max_size  # in bytes
+        self.min_size = min_size  # in bytes
+        self.message = message
+
+    def __call__(self, form, field):
+        if not field.data:
+            return  # No file uploaded, let FileRequired handle it
+
+        file_size = getattr(field.data, 'size', None)
+        if file_size is None:
+            raise ValidationError("Cannot determine file size.")
+
+        if self.max_size is not None and file_size > self.max_size:
+            message = self.message
+            if message is None:
+                max_mb = self.max_size / (1024 * 1024)
+                message = f"File size exceeds maximum allowed size of {max_mb:.2f} MB."
+            raise ValidationError(message)
+
+        if self.min_size is not None and file_size < self.min_size:
+            message = self.message
+            if message is None:
+                min_kb = self.min_size / 1024
+                message = f"File size is below minimum required size of {min_kb:.2f} KB."
+            raise ValidationError(message)

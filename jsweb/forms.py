@@ -45,10 +45,30 @@ class HiddenField(Field):
         kwargs['type'] = 'hidden'
         return super().__call__(**kwargs)
 
+class FileField(Field):
+    """A field for file uploads."""
+    def __init__(self, label=None, validators=None, multiple=False):
+        super().__init__(label=label, validators=validators, default="")
+        self.multiple = multiple
+
+    def __call__(self, **kwargs):
+        kwargs['type'] = 'file'
+        kwargs.setdefault('id', self.name)
+        kwargs.setdefault('name', self.name)
+        if self.multiple:
+            kwargs['multiple'] = 'multiple'
+
+        # Remove value attribute for file inputs (not allowed)
+        kwargs.pop('value', None)
+
+        attributes = ' '.join(f'{key}="{value}"' for key, value in kwargs.items())
+        return f'<input {attributes}>'
+
 class Form:
     """A collection of fields that can be validated together."""
-    def __init__(self, formdata=None):
+    def __init__(self, formdata=None, files=None):
         self.formdata = formdata or {}
+        self.files = files or {}
         self._fields = {}
 
         # Collect all Field instances from the class definition
@@ -57,8 +77,11 @@ class Form:
                 field = getattr(self, name)
                 field.name = name
                 self._fields[name] = field
-                # Populate field data from formdata if available
-                if name in self.formdata:
+                # Populate field data from formdata or files if available
+                if isinstance(field, FileField):
+                    if name in self.files:
+                        field.data = self.files[name]
+                elif name in self.formdata:
                     field.data = self.formdata[name]
 
     def validate(self):
