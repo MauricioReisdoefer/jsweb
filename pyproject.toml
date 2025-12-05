@@ -54,15 +54,16 @@ Documentation = "https://jsweb-framework.site/"
 Homepage = "https://github.com/Jones-peter/jsweb"
 "Bug Tracker" = "https://github.com/Jones-peter/jsweb/issues"
 
-[tool.setuptools]
-include-package-data = true
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jsweb*"]
 
-
-# MANIFEST.in
 [tool.setuptools.package-data]
 jsweb = [
     "templates/*.html",
+    "templates/admin/*",
     "static/*.css",
     "static/*.png",
-    "project_templates/*.jinja"
+    "project_templates/*.jinja",
+    "project_templates/alembic/*"
 ]
