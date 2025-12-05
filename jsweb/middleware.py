@@ -51,6 +51,11 @@ class StaticFilesMiddleware(Middleware):
 class DBSessionMiddleware(Middleware):
     def __call__(self, environ, start_response):
         try:
-            return self.app(environ, start_response)
+            response = self.app(environ, start_response)
+            db_session.commit()
+            return response
+        except Exception:
+            db_session.rollback()
+            raise
         finally:
             db_session.remove()

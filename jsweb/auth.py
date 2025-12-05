@@ -1,6 +1,6 @@
 from functools import wraps
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
-from .response import redirect, url_for
+from .response import redirect, url_for, Forbidden
 
 # This will be initialized by the JsWebApp instance
 _serializer = None
@@ -45,5 +45,17 @@ def login_required(handler):
             # Use url_for to dynamically find the login page
             login_url = url_for(request, 'auth.login')
             return redirect(login_url)
+        return handler(request, *args, **kwargs)
+    return decorated_function
+
+def admin_required(handler):
+    """
+    A decorator to protect routes from non-admin access.
+    If the user is not logged in or not an admin, it redirects to the admin login page.
+    """
+    @wraps(handler)
+    def decorated_function(request, *args, **kwargs):
+        if not request.user or not getattr(request.user, 'is_admin', False):
+            return redirect(url_for(request, 'admin.index'))
         return handler(request, *args, **kwargs)
     return decorated_function

@@ -10,7 +10,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Text,
-    ForeignKey,
+    ForeignKey,UniqueConstraint
 )
 from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -73,18 +73,20 @@ class ModelBase(Base):
         self.save()
 
     def save(self):
-        """Saves the object, handling potential errors and transaction rollback."""
+        """
+        Adds the object to the session. The transaction is managed by the DBSessionMiddleware.
+        """
         try:
             db_session.add(self)
-            db_session.commit()
         except SQLAlchemyError as e:
             _handle_db_error(e)
 
     def delete(self):
-        """Deletes the object, handling potential errors and transaction rollback."""
+        """
+        Deletes the object from the session. The transaction is managed by the DBSessionMiddleware.
+        """
         try:
             db_session.delete(self)
-            db_session.commit()
         except SQLAlchemyError as e:
             _handle_db_error(e)
 

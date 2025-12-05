@@ -7,6 +7,8 @@ import time
 import subprocess
 import secrets
 import importlib.util
+import shutil
+import getpass
 
 from alembic import command
 from alembic.autogenerate import produce_migrations
@@ -156,47 +158,33 @@ def display_qr_code(url):
     logger.info("-" * 40)
 
 
-def patch_env_py():
-    path = os.path.join("migrations", "env.py")
-    with open(path, "r", encoding="utf-8") as f:
-        content_lines = f.readlines()
-
-    new_content_lines = []
-    for line in content_lines:
-        if "fileConfig(config.config_file_name)" in line:
-            new_content_lines.append(
-                line.replace("fileConfig(config.config_file_name)", "fileConfig(config.config_file_name)"))
-            new_content_lines.append("\n")
-        elif "target_metadata = None" in line:
-            new_content_lines.append("from jsweb.database import ModelBase\n")
-            new_content_lines.append("target_metadata = ModelBase.metadata\n")
-        else:
-            new_content_lines.append(line)
-
-    with open(path, "w", encoding="utf-8") as f:
-        f.writelines(new_content_lines)
-    logger.info("✅ Patched migration environment for JsWeb.")
-
-
 def setup_alembic_if_needed():
-    if not os.path.exists(os.path.join("migrations", "env.py")):
+    """
+    Initializes the Alembic migration environment using pre-packaged templates.
+    This is more robust than running 'alembic init' and patching files.
+    """
+    migrations_dir = os.path.join(os.getcwd(), "migrations")
+    if not os.path.exists(os.path.join(migrations_dir, "env.py")):
         logger.info("⚙️  Initializing migration environment...")
-        try:
-            command_init = [sys.executable, "-m", "alembic", "init", "migrations"]
-            subprocess.run(command_init, check=True, capture_output=True, text=True, encoding='utf-8')
 
-            if os.path.exists("alembic.ini"):
-                os.rename("alembic.ini", "migrations/config.ini")
+        # Create the migrations directory and its subdirectories
+        os.makedirs(os.path.join(migrations_dir, "versions"), exist_ok=True)
 
-            patch_env_py()
-
-        except FileNotFoundError:
-            logger.error("❌ Error: 'alembic' command not found. Is it installed in your virtual environment?")
-            sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            logger.error("❌ Error initializing migration environment:")
-            logger.error(e.stderr)
-            sys.exit(1)
+        # Copy our pre-configured templates
+        alembic_template_dir = os.path.join(PROJECT_TEMPLATES_DIR, "alembic")
+        shutil.copy(
+            os.path.join(alembic_template_dir, "env.py"),
+            migrations_dir
+        )
+        shutil.copy(
+            os.path.join(alembic_template_dir, "config.ini"),
+            migrations_dir
+        )
+        shutil.copy(
+            os.path.join(alembic_template_dir, "script.py.mako"),
+            migrations_dir
+        )
+        logger.info("✅ Migration environment initialized.")
 
 
 def get_alembic_config(db_url):
@@ -256,6 +244,50 @@ def preview_model_changes_readable(database_url, metadata):
                 changes.append(f"Unhandled change: {op.__class__.__name__}")
         return changes if changes else None
 
+def create_admin_user():
+    """Interactively creates an admin user."""
+    logger.info("Creating a new admin user...")
+    from jsweb.database import init_db, db_session
+    
+    config = load_config()
+    init_db(config.DATABASE_URL)
+
+    try:
+        from models import User
+
+        username = input("Username: ")
+        email = input("Email: ")
+        password = getpass.getpass("Password: ")
+        confirm_password = getpass.getpass("Confirm Password: ")
+
+        if password != confirm_password:
+            logger.error("❌ Passwords do not match.")
+            return
+
+        if User.query.filter_by(username=username).first():
+            logger.error(f"❌ User with username '{username}' already exists.")
+            return
+        
+        if User.query.filter_by(email=email).first():
+            logger.error(f"❌ User with email '{email}' already exists.")
+            return
+
+        admin = User(username=username, email=email, is_admin=True)
+        admin.set_password(password)
+        admin.save()
+        
+        db_session.commit() # Manually commit the transaction for the CLI command
+        
+        logger.info(f"✅ Admin user '{username}' created successfully.")
+
+    except ImportError:
+        logger.error("❌ Could not import User model. Make sure you are in a JsWeb project directory.")
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"❌ An error occurred: {e}")
+    finally:
+        db_session.remove() # Ensure the session is closed
+
 
 def cli():
     parser = argparse.ArgumentParser(prog="jsweb", description="JsWeb CLI - A lightweight Python web framework.")
@@ -278,6 +310,8 @@ def cli():
     prepare_cmd.add_argument("-m", "--message", required=False, help="A short, descriptive message for the migration.")
 
     db_sub.add_parser("upgrade", help="Apply all pending migrations to the database.")
+
+    sub.add_parser("create-admin", help="Create a new administrator user.")
 
     args = parser.parse_args()
     sys.path.insert(0, os.getcwd())
@@ -334,6 +368,9 @@ def cli():
 
     elif args.command == "new":
         create_project(args.name)
+
+    elif args.command == "create-admin":
+        create_admin_user()
 
     elif args.command == "db":
         config = load_config()
