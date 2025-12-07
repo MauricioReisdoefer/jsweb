@@ -1,6 +1,6 @@
 <p align="center">
 <a href="https://jsweb-framework.site/" target="_blank">
-  <img src="images/jsweb_logo.png" alt="JsWeb Logo" width="200">
+  <img src="https://github.com/Jones-peter/jsweb/blob/main/images/jsweb_logo.png?raw=true" alt="JsWeb Logo" width="200">
 </a>
 </p>
 <p align="center">
@@ -30,497 +30,112 @@
   </a>
 </p>
 
+# JsWeb: The Blazing-Fast ASGI Web Framework
 
-# JsWeb: A Lightweight Python Web Framework
-[Official Documentation](https://jsweb-framework.site/)
+**JsWeb** is a modern, high-performance Python web framework built from the ground up on the **ASGI** standard. It's designed for developers who want the speed of asynchronous programming with the simplicity of a classic framework.
 
-JsWeb is a minimalistic yet powerful Python web framework designed for developers who prefer a clear, explicit, and less opinionated approach to building web applications. It provides essential tools for routing, request/response handling, authentication, forms, and database integration, allowing you to build robust applications with a clear understanding of each component.
+With built-in, zero-configuration AJAX and a focus on developer experience, JsWeb makes it easy to build fast, dynamic web applications without writing a single line of JavaScript.
 
-## Features
+## Core Features
 
-*   **WSGI-compliant:** Integrates seamlessly with any WSGI server.
-*   **Flexible Routing:** Define routes with HTTP methods and URL parameters.
-*   **Modular Blueprints:** Organize your application into reusable components.
-*   **Authentication & Authorization:** Secure user sessions and protect routes.
-*   **Form Handling & Validation:** Simplify form processing and data validation.
-*   **SQLAlchemy ORM Integration:** Robust database management with migrations.
-*   **Jinja2 Templating:** Render dynamic HTML content with ease.
-*   **Static File Serving:** Built-in middleware for serving static assets.
-*   **CLI Tools:** Command-line interface for project creation, running the server, and database migrations.
-
+*   **Blazing-Fast ASGI Core:** Built for speed and concurrency, compatible with servers like Uvicorn.
+*   **Automatic AJAX:** Forms and navigation are automatically handled in the background for a smooth, single-page-application feel with zero configuration.
+*   **Elegant Routing:** Define routes with a simple decorator syntax.
+*   **Jinja2 Templating:** Render dynamic HTML with a powerful and familiar templating engine.
+*   **Built-in Security:** Comes with CSRF protection, password hashing, and cache-control tools out of the box.
+*   **Full-Featured Forms:** A powerful, easy-to-use form library with validation.
+*   **SQLAlchemy Integration:** Includes Alembic for easy database migrations.
+*   **Automatic Admin Panel:** A production-ready admin interface for your models that's generated automatically.
+*   **Modular Blueprints:** Organize your code into clean, reusable components.
+*   **Powerful CLI:** A command-line interface for creating projects, running the server, and managing your database.
 
 ### Contributors
 <a href="https://github.com/jones-peter/jsweb/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=jones-peter/jsweb&v=2" />
 </a>
 
-## Installation
+## Command-Line Interface (CLI)
 
-JsWeb is designed to be used by copying its core files into your project or by installing it as a package (though the current structure suggests direct inclusion).
+JsWeb comes with a powerful set of command-line tools to streamline your development workflow.
 
-To create a new project using the CLI:
+*   **`jsweb run`**: Starts the development server.
+    *   `--host <address>`: Specify the host to run on (e.g., `0.0.0.0`).
+    *   `--port <number>`: Specify the port.
+    *   `--reload`: Enable auto-reloading on code changes.
+    *   `--qr`: Display a QR code for accessing the server on your local network.
 
-```bash
-jsweb new my_project
-cd my_project
-jsweb db prepare -m "Initial migration"
-jsweb db upgrade
-jsweb run
-```
+*   **`jsweb new <project_name>`**: Creates a new, production-ready JsWeb project with a clean directory structure and all necessary files.
 
-## Core Concepts
+*   **`jsweb db ...`**: A group of commands for managing your database migrations with Alembic.
+    *   `jsweb db prepare -m "Your message"`: Generates a new database migration script based on changes to your models.
+    *   `jsweb db upgrade`: Applies all pending migrations to the database.
+    *   `jsweb db downgrade`: Reverts the last applied migration.
 
-### Configuration (`config.py`)
+*   **`jsweb create-admin`**: An interactive command to create a new administrator user in the database.
 
-When you create a new project using `jsweb new`, a `config.py` file is automatically generated in your project root. This file holds essential application settings as module-level variables.
+## Installation & Setup
 
-**`config.py` (Generated Example)**
+Get up and running in under a minute.
+
+1.  **Install JsWeb:**
+    ```bash
+    pip install jsweb
+    ```
+
+2.  **Create a new project:**
+    ```bash
+    jsweb new my_project
+    cd my_project
+    ```
+
+3.  **(Optional) Set up the database:**
+    ```bash
+    jsweb db prepare -m "Initial migration"
+    jsweb db upgrade
+    ```
+
+4.  **Run the development server:**
+    ```bash
+    jsweb run --reload
+    ```
+
+Your new JsWeb project is now running with auto-reloading enabled!
+
+## Quickstart: A Real-World Example
+
+Here’s how a simple but structured JsWeb application looks, using **Blueprints** to organize your code.
+
+**`views.py`**
 ```python
-import os
+from jsweb import Blueprint, render
 
-APP_NAME = "Demo-app"
-DEBUG = True
-VERSION = "0.1.0"
-SECRET_KEY = "YOUR_GENERATED_SECRET_KEY"  # Automatically generated by 'jsweb new'. Crucial for session security.
-TEMPLATE_FOLDER = "templates"
-STATIC_URL = "/static"
-STATIC_DIR = "static"
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'jsweb.db')}"
-HOST = "127.0.0.1"
-PORT = 8000
+# 1. Create a "Blueprint" for a group of related pages.
+views_bp = Blueprint('views')
+
+# 2. Define a route on the blueprint.
+@views_bp.route("/")
+async def home(req):
+    # The render function automatically finds your templates.
+    return render(req, "welcome.html", {"user_name": "Guest"})
 ```
-
-**Overriding Configuration with Environment Variables**
-You can override any setting in `config.py` by setting an environment variable prefixed with `JSWEB_`. For example, to change the `SECRET_KEY` or `DATABASE_URL`:
-
-```bash
-export JSWEB_SECRET_KEY="a_new_and_very_secret_key"
-export JSWEB_DATABASE_URL="postgresql://user:password@host:port/dbname"
-jsweb run
-```
-JsWeb will automatically detect and apply these environment variables, logging any overrides.
-
-### The `JsWebApp` Application
-
-The heart of your JsWeb application is the `JsWebApp` instance. It ties together routing, configuration, and middleware.
 
 **`app.py`**
 ```python
-import os
-from jsweb.app import JsWebApp
-import config # Import your generated config module
+from jsweb import JsWebApp
+import config
 
+# Import the blueprint you just created.
+from views import views_bp
+
+# 3. Create the main application instance.
 app = JsWebApp(config=config)
 
-# Register template filters
-@app.filter("datetimeformat")
-def datetimeformat(value, format="%Y-%m-%d %H:%M"):
-    return value.strftime(format)
+# 4. Register your blueprint with the app.
+app.register_blueprint(views_bp)
 
-# Register routes (see Routing section)
-# ...
+# The `jsweb run` command will find and run this `app` instance.
 ```
 
-### Request and Response
+This structure allows you to organize your application into logical components, making it clean and scalable from the very beginning.
 
-Every interaction with your web application involves a `Request` object (representing the incoming HTTP request) and a `Response` object (representing the outgoing HTTP response).
-
-**`request.py`**
-The `Request` object provides access to:
-*   `request.method`: HTTP method (GET, POST, etc.)
-*   `request.path`: URL path
-*   `request.query`: Query parameters (e.g., `?key=value`)
-*   `request.headers`: Request headers
-*   `request.cookies`: Request cookies
-*   `request.body`: Raw request body
-*   `request.form`: Form data (for `application/x-www-form-urlencoded`)
-*   `request.user`: (Populated by authentication middleware)
-
-**`response.py`**
-JsWeb provides several response types:
-*   `Response`: Base class for custom responses.
-*   `HTMLResponse`: For sending HTML content.
-*   `JSONResponse`: For sending JSON data.
-*   `RedirectResponse`: For HTTP redirects.
-*   `Forbidden`: For 403 Forbidden errors.
-
-Helper functions for creating responses:
-*   `html(body, status=200, headers=None)`
-*   `json(data, status=200, headers=None)`
-*   `redirect(url, status=302, headers=None)`
-*   `render(req, template_name, context=None)`: Renders a Jinja2 template.
-
-Example usage in a view function:
-```python
-from jsweb.response import html, json, redirect, render
-
-@app.route("/")
-def index(request):
-    return html("<h1>Welcome to JsWeb!</h1>")
-
-@app.route("/api/data")
-def get_data(request):
-    data = {"message": "Hello from API", "version": "1.0"}
-    return json(data)
-
-@app.route("/old-path")
-def old_path(request):
-    return redirect("/new-path")
-
-@app.route("/hello/<name>")
-def hello_name(request, name):
-    return render(request, "hello.html", {"name": name})
-```
-
-### Routing
-
-The `Router` maps incoming URL paths and HTTP methods to specific view functions.
-
-```python
-from jsweb.app import JsWebApp
-from jsweb.response import html
-import config # Import your generated config module
-
-app = JsWebApp(config=config)
-
-# Basic GET route
-@app.route("/")
-def index(request):
-    return html("Home Page")
-
-# Route with multiple methods
-@app.route("/submit", methods=["GET", "POST"])
-def submit_form(request):
-    if request.method == "POST":
-        # Process form data
-        return html("Form submitted!")
-    return html("<form method='post'><button type='submit'>Submit</button></form>")
-
-# Route with URL parameters
-@app.route("/user/<int:user_id>")
-def get_user(request, user_id):
-    return html(f"User ID: {user_id}")
-
-@app.route("/files/<path:filepath>")
-def serve_file(request, filepath):
-    return html(f"Serving file: {filepath}")
-```
-
-### Blueprints
-
-Blueprints allow you to modularize your application by grouping related routes and functionalities.
-
-**`my_blueprint.py`**
-```python
-from jsweb.blueprints import Blueprint
-from jsweb.response import html
-
-my_bp = Blueprint("my_module", url_prefix="/my-module")
-
-@my_bp.route("/")
-def index(request):
-    return html("Hello from My Module!")
-
-@my_bp.route("/about")
-def about(request):
-    return html("About My Module")
-```
-
-**`app.py` (registering the blueprint)**
-```python
-from jsweb.app import JsWebApp
-from .my_blueprint import my_bp # Assuming my_blueprint.py is in the same directory
-import config # Import your generated config module
-
-app = JsWebApp(config=config)
-app.register_blueprint(my_bp)
-
-# Accessing routes:
-# /my-module/
-# /my-module/about
-```
-
-### Authentication
-
-JsWeb provides a simple yet effective authentication system using secure session cookies.
-
-First, ensure your `SECRET_KEY` is properly set in `config.py` or via an environment variable. This is crucial for the security of your session cookies.
-
-**`app.py` (user loader example)**
-```python
-# ... in your app.py, after app = JsWebApp(config=config)
-# You can override the default user_loader if your User model is different
-# app._user_loader_callback = User.get_by_id
-```
-
-**Authentication Functions and Decorators**
-
-*   `login_user(response, user)`: Logs in a user by setting a session cookie.
-*   `logout_user(response)`: Logs out a user by deleting the session cookie.
-*   `get_current_user(request)`: Retrieves the currently logged-in user from the request.
-*   `login_required(handler)`: A decorator to protect routes, redirecting unauthenticated users to a login page.
-
-**Example Usage**
-```python
-from jsweb.app import JsWebApp
-from jsweb.response import html, redirect, render
-from jsweb.auth import login_user, logout_user, login_required, get_current_user
-from jsweb.security import generate_password_hash, check_password_hash
-from jsweb.database import db_session # Assuming you have db_session configured
-from .models import User # Assuming you have a User model in models.py
-import config # Import your generated config module
-
-app = JsWebApp(config=config)
-# ... app setup ...
-
-@app.route("/register", methods=["GET", "POST"])
-def register(request):
-    if request.method == "POST":
-        username = request.form.get("username")
-        email = request.form.get("email")
-        password = request.form.get("password")
-
-        if username and email and password:
-            hashed_password = generate_password_hash(password)
-            new_user = User.create(username=username, email=email, password_hash=hashed_password)
-            # For simplicity, we're directly logging in after registration
-            response = redirect("/profile")
-            login_user(response, new_user)
-            return response
-        return html("Registration failed. Please fill all fields.")
-    return render(request, "register.html") # You'd need a register.html template
-
-@app.route("/login", methods=["GET", "POST"])
-def login(request):
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-
-        user = db_session.query(User).filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            response = redirect("/profile")
-            login_user(response, user)
-            return response
-        return html("Invalid credentials.")
-    return render(request, "login.html") # You'd need a login.html template
-
-@app.route("/logout")
-@login_required
-def logout(request):
-    response = redirect("/login")
-    logout_user(response)
-    return response
-
-@app.route("/profile")
-@login_required
-def profile(request):
-    user = request.user # User object is available via request.user thanks to login_required
-    return html(f"Welcome, {user.username}! This is your profile.")
-
-# Example of a route that requires login within a blueprint
-# @my_bp.route("/dashboard")
-# @login_required
-# def dashboard(request):
-#     return html(f"Welcome to the dashboard, {request.user.username}!")
-```
-
-### Database Integration
-
-JsWeb integrates with SQLAlchemy for robust ORM capabilities and Alembic for database migrations.
-
-**Database Configuration**
-The `DATABASE_URL` is set in your project's `config.py` file, which is generated by `jsweb new`. You can modify this file directly or override the setting using the `JSWEB_DATABASE_URL` environment variable.
-
-```python
-# config.py (excerpt)
-DATABASE_URL = "sqlite:///site.db" # Or your PostgreSQL/MySQL connection string
-```
-
-**`models.py`**
-Define your models by inheriting from `ModelBase` (from `jsweb.database`).
-
-```python
-# models.py
-from jsweb.database import ModelBase, Column, Integer, String, ForeignKey, relationship, db_session
-from jsweb.security import generate_password_hash, check_password_hash
-
-class User(ModelBase):
-    __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), unique=True, nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(256), nullable=False)
-
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-    @classmethod
-    def get_by_id(cls, user_id):
-        return db_session.query(cls).get(user_id)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-class Post(ModelBase):
-    __tablename__ = 'posts'
-    id = Column(Integer, primary_key=True)
-    title = Column(String(100), nullable=False)
-    content = Column(String, nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id'))
-
-    author = relationship("User", back_populates="posts")
-
-    def __repr__(self):
-        return f'<Post {self.title}>'
-```
-
-**Database Operations in View Functions**
-```python
-from jsweb.database import db_session
-from .models import User, Post # Assuming models.py is in the same directory
-from jsweb.response import redirect, render
-from jsweb.auth import login_required # Assuming login_required is imported
-import config # Import your generated config module
-
-app = JsWebApp(config=config)
-
-@app.route("/create_post", methods=["GET", "POST"])
-@login_required
-def create_post(request):
-    if request.method == "POST":
-        title = request.form.get("title")
-        content = request.form.get("content")
-        if title and content:
-            new_post = Post.create(title=title, content=content, author=request.user)
-            return redirect(f"/post/{new_post.id}")
-    return render(request, "create_post.html")
-
-@app.route("/post/<int:post_id>")
-def view_post(request, post_id):
-    post = db_session.query(Post).get(post_id)
-    if post:
-        return render(request, "post_detail.html", {"post": post})
-    return html("Post not found", status=404)
-```
-
-**Database Migrations (CLI)**
-
-JsWeb uses Alembic for database migrations.
-
-*   **`jsweb db prepare [-m "message"]`**: Detects changes in your `models.py` and generates a new Alembic migration script.
-*   **`jsweb db upgrade`**: Applies all pending migrations to your database, bringing it up to date.
-
-Example workflow:
-1.  Modify your `models.py` (e.g., add a new column to a table).
-2.  Run `jsweb db prepare -m "Add new_column to User"`. This will create a new migration file in the `migrations/versions` directory.
-3.  Review the generated migration file.
-4.  Run `jsweb db upgrade` to apply the changes to your database.
-
-### Forms
-
-JsWeb provides a simple form system for defining fields and performing validation.
-
-**`forms.py`**
-```python
-from jsweb.forms import Form, StringField, PasswordField
-from jsweb.validators import DataRequired, Email, Length, EqualTo
-
-class LoginForm(Form):
-    username = StringField(label="Username", validators=[DataRequired(), Length(min=3, max=20)])
-    password = PasswordField(label="Password", validators=[DataRequired()])
-
-class RegistrationForm(Form):
-    username = StringField(label="Username", validators=[DataRequired(), Length(min=3, max=20)])
-    email = StringField(label="Email", validators=[DataRequired(), Email()])
-    password = PasswordField(label="Password", validators=[DataRequired(), Length(min=6)])
-    confirm_password = PasswordField(label="Confirm Password", validators=[DataRequired(), EqualTo('password')])
-```
-
-**Using Forms in View Functions**
-```python
-from jsweb.app import JsWebApp
-from jsweb.response import render, html, redirect
-from .forms import LoginForm, RegistrationForm # Assuming forms.py is in the same directory
-from jsweb.database import db_session # Assuming db_session is configured
-from jsweb.security import generate_password_hash, check_password_hash
-from jsweb.auth import login_user # Assuming login_user is imported
-from .models import User # Assuming User model is in models.py
-import config # Import your generated config module
-
-app = JsWebApp(config=config)
-# ... other imports for auth and db ...
-
-@app.route("/login", methods=["GET", "POST"])
-def login_with_form(request):
-    form = LoginForm(request.form)
-    if request.method == "POST" and form.validate():
-        # Authenticate user using form.username.data and form.password.data
-        user = db_session.query(User).filter_by(username=form.username.data).first()
-        if user and check_password_hash(user.password_hash, form.password.data):
-            response = redirect("/profile")
-            login_user(response, user)
-            return response
-        form.username.errors.append("Invalid username or password") # Add a general error
-    return render(request, "login_form.html", {"form": form})
-
-@app.route("/register", methods=["GET", "POST"])
-def register_with_form(request):
-    form = RegistrationForm(request.form)
-    if request.method == "POST" and form.validate():
-        hashed_password = generate_password_hash(form.password.data)
-        new_user = User.create(username=form.username.data, email=form.email.data, password_hash=hashed_password)
-        response = redirect("/profile")
-        login_user(response, new_user)
-        return response
-    return render(request, "register_form.html", {"form": form})
-```
-
-**`login_form.html` (example template snippet)**
-```html
-<form method="POST">
-    {{ form.csrf_token() }} {# Important for CSRF protection #}
-    <div>
-        <label for="username">{{ form.username.label }}</label>
-        {{ form.username(class="input-field") }}
-        {% if form.username.errors %}
-            <ul class="errors">
-                {% for error in form.username.errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    </div>
-    <div>
-        <label for="password">{{ form.password.label }}</label>
-        {{ form.password(class="input-field") }}
-        {% if form.password.errors %}
-            <ul class="errors">
-                {% for error in form.password.errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    </div>
-    <button type="submit">Login</button>
-</form>
-```
-
-### CLI Usage
-
-The `jsweb` command-line interface provides tools for managing your project.
-
-*   **`jsweb run [--host HOST] [--port PORT] [--qr] [--reload]`**: Runs the development server.
-    *   `--host`: Specify the host address (overrides `config.HOST`).
-    *   `--port`: Specify the port number (overrides `config.PORT`).
-    *   `--qr`: Display a QR code for LAN access.
-    *   `--reload`: Enable auto-reloading on code changes (for development).
-*   **`jsweb new <project_name>`**: Creates a new JsWeb project with a predefined structure, including a generated `config.py`.
-*   **`jsweb db prepare [-m "message"]`**: Detects model changes and generates a new Alembic migration script.
-*   **`jsweb db upgrade`**: Applies all pending database migrations.
-
-This documentation covers the main features of the JsWeb framework. For more detailed usage, refer to the [official documentation](https://jsweb-framework.site/), individual module docstrings, and examples within the codebase.
-
+For more detailed usage, refer to the [official documentation](https://jsweb-framework.site/), individual module docstrings, and examples within the codebase.

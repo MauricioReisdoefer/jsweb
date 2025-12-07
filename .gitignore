@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 Tests/
+Readme_back/
 # C extensions
 *.so
 .gitignore
