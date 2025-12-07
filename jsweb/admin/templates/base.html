@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}JsWeb Admin{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin.css') }}?v={{ library_version }}">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+    <link rel="icon" href="{{ url_for('admin.static', filename='jsweb_logo_bg.png') }}" type="image/png">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <a href="{{ url_for('admin.index') }}">
+                <img src="{{ url_for('admin.static', filename='jsweb_logo.png') }}" alt="JsWeb Logo" class="logo-full">
+                <img src="{{ url_for('admin.static', filename='jsweb_logo_bg.png') }}" alt="JsWeb Icon" class="logo-icon">
+            </a>
+        </div>
+        <nav>
+            <a href="{{ url_for('admin.index') }}" class="{% if request.endpoint == 'admin.index' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+            </a>
+            <hr>
+            {% for model_name in admin_models %}
+                <a href="{{ url_for('admin.' + model_name|lower + '_list') }}" class="{% if model_name.lower() in request.endpoint %}active{% endif %}">
+                    <i class="fas fa-database"></i><span>{{ model_name }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+    </div>
+    <div class="main-content">
+        <header class="header">
+            <button id="sidebar-toggle"><i class="fas fa-bars"></i></button>
+            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+        </header>
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="footer">
+            <p>Powered by <strong>JsWeb</strong></p>
+        </footer>
+    </div>
+    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $(document).ready(function() {
+            $('.datatable').DataTable();
+
+            $('#sidebar-toggle').on('click', function() {
+                $('.sidebar').toggleClass('closed');
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

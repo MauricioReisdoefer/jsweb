@@ -61,11 +61,17 @@ include = ["jsweb*"]
 
 [tool.setuptools.package-data]
 jsweb = [
+    # Core framework files
     "templates/*.html",
-    "templates/admin/*",
     "static/*.css",
-    "static/*.png",
     "static/*.js",
+    
+    # Project generation templates
     "project_templates/*.jinja",
-    "project_templates/alembic/*"
+    "project_templates/alembic/*",
+
+    # --- UPDATED FOR ADMIN SUB-PACKAGE ---
+    # Include all templates and static files from within the new 'admin' package
+    "admin/templates/*.html",
+    "admin/static/*"
 ]

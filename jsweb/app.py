@@ -34,10 +34,8 @@ class JsWebApp:
         if os.path.isdir(lib_template_path):
             template_paths.append(lib_template_path)
             
-        # Add the library's admin template folder
-        admin_template_path = os.path.join(os.path.dirname(__file__), "admin_templates")
-        if os.path.isdir(admin_template_path):
-            template_paths.append(admin_template_path)
+        # The admin templates are now self-contained in the admin package,
+        # so we no longer add them to the main app's template paths.
 
         if template_paths:
             configure_template_env(template_paths)
