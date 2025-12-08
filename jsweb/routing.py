@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Tuple, Optional, Callable, any
+from typing import Dict, List, Optional, Callable
 
 
 class NotFound(Exception):
@@ -16,23 +16,50 @@ class MethodNotAllowed(Exception):
     pass
 
 
+# We define typed converters instead of using regex
+def _int_converter(value: str) -> Optional[int]:
+    """
+    Optimized integer converter using str.isdigit().
+    """
+    # we also handle negative integers
+    if value.startswith('-') and value[1:].isdigit():
+        return int(value)
+    return int(value) if value.isdigit() else None
+
+
+def _str_converter(value: str) -> str:
+    """String passthrough - no conversion needed."""
+    return value
+
+
+def _path_converter(value: str) -> str:
+    """Path passthrough - accepts any string including slashes."""
+    return value
+
+
 class Route:
-    # Class-level type converters to be shared across all Route instances
-    TYPE_CONVERTERS = {
-        'str': (str, r'[^/]+'),
-        'int': (int, r'\d+'),
-        'path': (str, r'.+?')
-    }
     """
     Represents a single route with path, handler, and parameter conversion.
     """
+
+    # We use __slots__ to reduce memory usage and speed up attribute access
+    __slots__ = ('path', 'handler', 'methods', 'endpoint', 'converters',
+                 'is_static', 'regex', 'param_names')
+
+    # Class-level type converters - optimized functions instead of just type constructors
+    TYPE_CONVERTERS = {
+        'str': (_str_converter, r'[^/]+'),
+        'int': (_int_converter, r'-?\d+'),  # Allow optional negative sign
+        'path': (_path_converter, r'.+?')
+    }
+
     def __init__(self, path: str, handler: Callable, methods: List[str], endpoint: str):
         self.path = path
         self.handler = handler
-        self.methods_set = set(methods) #set for faster method checking
+        self.methods = methods  # List is faster than set for small N (1-3 methods)
         self.endpoint = endpoint
         self.converters = {}
-        self.is_static = '<' not in path # Be this a Flag for static routes
+        self.is_static = '<' not in path  # Flag for static routes
         if not self.is_static:
             self.regex, self.param_names = self._compile_path()
         else:
@@ -88,8 +115,6 @@ class Router:
         self.static_routes: Dict[str, Route] = {}
         self.dynamic_routes: List[Route] = []
         self.endpoints: Dict[str, Route] = {}  # For reverse lookups (url_for)
-        self.static_url_path = None
-        self.static_dir = None
 
 
     def add_route(self, path: str, handler: Callable, methods: Optional[List[str]]=None, endpoint: Optional[str]=None):
@@ -111,6 +136,8 @@ class Router:
             self.static_routes[path] = route
         else:
             self.dynamic_routes.append(route)
+        
+        self.endpoints[endpoint] = route
 
     def route(self, path: str, methods:Optional[List[str]]=None, endpoint:Optional[str]=None):
         """
@@ -125,19 +152,21 @@ class Router:
         """
         Finds the appropriate handler for a given path and HTTP method.
         """
+        # Static routes: O(1) dict lookup + O(k) method check (k=1-3)
         if path in self.static_routes:
             route = self.static_routes[path]
-            if method in route.methods_set:
+            if method in route.methods:
                 return route.handler, {}
             raise MethodNotAllowed(f"Method {method} not allowed for path {path}.")
-        #here we can check method before expensive regex matching, we iterate with pre-compiled patterns
+
+        # Dynamic routes: Check method before expensive regex matching
         for route in self.dynamic_routes:
-            if method not in route.methods_set: # Quick rejection, checking method first is cheap
+            if method not in route.methods:  # Quick rejection for mismatched methods
                 continue
-            # Now we do the expensive regex matching
+            # Now do the expensive regex matching
             params = route.match(path)
             if params is not None:
-                    return route.handler, params
+                return route.handler, params
         raise NotFound(f"No route found for {path}")
 
     def url_for(self, endpoint, **params):
