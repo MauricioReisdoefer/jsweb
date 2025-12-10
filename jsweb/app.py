@@ -107,10 +107,6 @@ class JsWebApp:
             await response(scope, receive, send)
             return
 
-        # 404 Not Found
-        response = HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
-        await response(scope, receive, send)
-
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":

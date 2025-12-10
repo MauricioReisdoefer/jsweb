@@ -345,6 +345,31 @@ def cli():
             from jsweb.database import init_db
             init_db(config.DATABASE_URL)
 
+            # Automatically setup OpenAPI documentation (unless disabled in config)
+            if getattr(config, 'ENABLE_OPENAPI_DOCS', True):
+                try:
+                    from jsweb.docs import setup_openapi_docs
+                    from jsweb.docs.introspection import introspect_app_routes
+
+                    # Introspect routes first
+                    introspect_app_routes(app_instance)
+
+                    # Setup docs with config values or defaults
+                    setup_openapi_docs(
+                        app_instance,
+                        title=getattr(config, 'API_TITLE', 'jsweb API'),
+                        version=getattr(config, 'API_VERSION', '1.0.0'),
+                        description=getattr(config, 'API_DESCRIPTION', ''),
+                        docs_url=getattr(config, 'OPENAPI_DOCS_URL', '/docs'),
+                        redoc_url=getattr(config, 'OPENAPI_REDOC_URL', '/redoc'),
+                        openapi_url=getattr(config, 'OPENAPI_JSON_URL', '/openapi.json'),
+                    )
+                except ImportError:
+                    # Pydantic not installed, skip OpenAPI setup
+                    pass
+                except Exception as e:
+                    logger.warning(f"⚠️  Could not setup OpenAPI docs: {e}")
+
             host = args.host or config.HOST
             port = args.port or config.PORT
 

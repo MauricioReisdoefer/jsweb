@@ -40,7 +40,8 @@ dependencies = [
     "itsdangerous",
     "alembic",
     "markupsafe",
-    "uvicorn"
+    "uvicorn",
+    "pydantic>=2.0,<3.0"  # Required for DTO system and OpenAPI docs
 ]
 
 [project.optional-dependencies]
