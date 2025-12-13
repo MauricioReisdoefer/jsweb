@@ -1,22 +1,36 @@
-import secrets
-import os
 import asyncio
-from .routing import Router, NotFound, MethodNotAllowed
-from .request import Request
-from .response import Response, HTMLResponse, configure_template_env, JSONResponse
-from .auth import init_auth, get_current_user
-from .middleware import StaticFilesMiddleware, DBSessionMiddleware, CSRFMiddleware
+import os
+import secrets
+
+from .auth import get_current_user, init_auth
 from .blueprints import Blueprint
+from .middleware import CSRFMiddleware, DBSessionMiddleware, StaticFilesMiddleware
+from .request import Request
+from .response import HTMLResponse, JSONResponse, Response, configure_template_env
+from .routing import MethodNotAllowed, NotFound, Router
+
 
 class JsWebApp:
     """
     The main application class for the JsWeb framework.
+
+    This class is the central object in a JsWeb application. It is used to
+    configure routes, register blueprints, and handle the ASGI application
+    lifecycle.
+
+    Attributes:
+        router (Router): The application's router instance.
+        config (object): A configuration object with application settings.
+        blueprints_with_static_files (list): A list of blueprints that have static files.
     """
+
     def __init__(self, config):
         """
-        Initialize the JsWebApp instance.
+        Initializes the JsWebApp instance.
 
-        :param config: Configuration object containing settings like SECRET_KEY, TEMPLATE_FOLDER, etc.
+        Args:
+            config: A configuration object or module containing settings like
+                    SECRET_KEY, TEMPLATE_FOLDER, etc.
         """
         self.router = Router()
         self.template_filters = {}
@@ -25,7 +39,12 @@ class JsWebApp:
         self._init_from_config()
 
     def _init_from_config(self):
-        """Initializes components that depend on the config."""
+        """
+        Initializes components that depend on the application's configuration.
+
+        This internal method sets up the template environment and authentication
+        system based on the provided config.
+        """
         template_paths = []
 
         if hasattr(self.config, "TEMPLATE_FOLDER") and hasattr(self.config, "BASE_DIR"):
@@ -36,7 +55,7 @@ class JsWebApp:
         lib_template_path = os.path.join(os.path.dirname(__file__), "templates")
         if os.path.isdir(lib_template_path):
             template_paths.append(lib_template_path)
-            
+
         if template_paths:
             configure_template_env(template_paths)
 
@@ -45,9 +64,13 @@ class JsWebApp:
 
     def _get_actual_user_loader(self):
         """
-        Retrieves the user loader callback.
-        
-        :return: The user loader function.
+        Retrieves the user loader callback function.
+
+        This method is used internally to find the correct function for loading a
+        user from an ID, which is essential for the authentication system.
+
+        Returns:
+            The user loader function.
         """
         if hasattr(self, '_user_loader_callback') and self._user_loader_callback:
             return self._user_loader_callback
@@ -55,10 +78,17 @@ class JsWebApp:
 
     def user_loader(self, user_id: int):
         """
-        Default user loader that attempts to load a user from a 'models' module.
-        
-        :param user_id: The ID of the user to load.
-        :return: The User object or None.
+        Default user loader that loads a user by their ID.
+
+        This default implementation attempts to import a `User` model from a `models`
+        module in the user's project and query it by ID. This method can be
+        overridden with a custom loader using the `@app.user_loader` decorator.
+
+        Args:
+            user_id (int): The ID of the user to load.
+
+        Returns:
+            The User object if found, otherwise None.
         """
         try:
             from models import User
@@ -68,12 +98,17 @@ class JsWebApp:
 
     def route(self, path, methods=None, endpoint=None):
         """
-        Decorator to register a new route.
+        A decorator to register a new route and associate it with a view function.
 
-        :param path: The URL path.
-        :param methods: List of HTTP methods allowed.
-        :param endpoint: Optional endpoint name.
-        :return: The decorator function.
+        Args:
+            path (str): The URL path for the route (e.g., '/users/<int:id>').
+            methods (list, optional): A list of allowed HTTP methods (e.g., ['GET', 'POST']).
+                                      Defaults to ['GET'].
+            endpoint (str, optional): A unique name for the route. If not provided,
+                                      the name of the view function is used.
+
+        Returns:
+            The decorator function.
         """
         return self.router.route(path, methods, endpoint)
 
@@ -81,13 +116,18 @@ class JsWebApp:
         """
         Registers a blueprint with the application.
 
-        :param blueprint: The Blueprint instance to register.
+        This method iterates over the routes defined in the blueprint and adds them
+        to the application's router, optionally prefixing them with the blueprint's
+        `url_prefix`. It also registers the blueprint's static file directory if one is defined.
+
+        Args:
+            blueprint (Blueprint): The Blueprint instance to register.
         """
         for path, handler, methods, endpoint in blueprint.routes:
             full_path = path
             if blueprint.url_prefix:
                 full_path = f"{blueprint.url_prefix.rstrip('/')}/{path.lstrip('/')}"
-            
+
             full_endpoint = f"{blueprint.name}.{endpoint}"
             self.router.add_route(full_path, handler, methods, endpoint=full_endpoint)
 
@@ -96,30 +136,41 @@ class JsWebApp:
 
     def filter(self, name):
         """
-        Decorator to register a custom template filter.
+        A decorator to register a custom template filter.
 
-        :param name: The name of the filter to use in templates.
-        :return: The decorator function.
+        The decorated function will be available in Jinja2 templates by the given name.
+
+        Args:
+            name (str): The name of the filter to use in templates.
+
+        Returns:
+            The decorator function.
         """
+
         def decorator(func):
             self.template_filters[name] = func
             return func
+
         return decorator
 
     async def _asgi_app_handler(self, scope, receive, send):
         """
-        Internal ASGI handler for processing requests.
+        Internal ASGI handler for processing a single request.
 
-        :param scope: The ASGI scope.
-        :param receive: The ASGI receive channel.
-        :param send: The ASGI send channel.
+        This method resolves the route, calls the appropriate handler, and sends
+        the response. It handles exceptions like `NotFound` and `MethodNotAllowed`.
+
+        Args:
+            scope: The ASGI scope for the request.
+            receive: The ASGI receive channel.
+            send: The ASGI send channel.
         """
         req = scope['jsweb.request']
         try:
             handler, params = self.router.resolve(req.path, req.method)
         except NotFound as e:
             response = JSONResponse({"error": str(e)}, status_code=404)
-            await response(scope,receive, send)
+            await response(scope, receive, send)
             return
         except MethodNotAllowed as e:
             response = JSONResponse({"error": str(e)}, status_code=405)
@@ -130,7 +181,7 @@ class JsWebApp:
             await response(scope, receive, send)
             return
 
-        if handler:    
+        if handler:
             if asyncio.iscoroutinefunction(handler):
                 response = await handler(req, **params)
             else:
@@ -147,14 +198,17 @@ class JsWebApp:
 
         await response(scope, receive, send)
 
-
     async def __call__(self, scope, receive, send):
         """
-        The ASGI application entry point.
+        The main ASGI application entry point.
 
-        :param scope: The ASGI scope.
-        :param receive: The ASGI receive channel.
-        :param send: The ASGI send channel.
+        This method is called by the ASGI server for each request. It sets up the
+        request object, wraps the main handler with middleware, and processes the request.
+
+        Args:
+            scope: The ASGI scope for the request.
+            receive: The ASGI receive channel.
+            send: The ASGI send channel.
         """
         if scope["type"] != "http":
             return
@@ -174,10 +228,11 @@ class JsWebApp:
 
         static_url = getattr(self.config, "STATIC_URL", "/static")
         static_dir = getattr(self.config, "STATIC_DIR", "static")
-        
+
         handler = self._asgi_app_handler
         handler = DBSessionMiddleware(handler)
-        handler = StaticFilesMiddleware(handler, static_url, static_dir, blueprint_statics=self.blueprints_with_static_files)
+        handler = StaticFilesMiddleware(handler, static_url, static_dir,
+                                        blueprint_statics=self.blueprints_with_static_files)
         handler = CSRFMiddleware(handler)
 
         await handler(scope, receive, send)
