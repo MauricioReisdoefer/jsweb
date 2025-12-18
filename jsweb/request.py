@@ -34,6 +34,7 @@ class Request:
         self.path = self.scope.get("path", "/")
         self.query = self._parse_query(self.scope.get("query_string", b"").decode())
         self.headers = self._parse_headers(self.scope.get("headers", []))
+        self.content_type = self.headers.get("content-type", "")
         self.cookies = self._parse_cookies(self.headers)
         self.user = None
 
@@ -101,8 +102,7 @@ class Request:
             dict: The parsed JSON data.
         """
         if self._json is None:
-            content_type = self.headers.get("content-type", "")
-            if "application/json" in content_type:
+            if "application/json" in self.content_type:
                 try:
                     body_bytes = await self.body()
                     self._json = json.loads(body_bytes) if body_bytes else {}

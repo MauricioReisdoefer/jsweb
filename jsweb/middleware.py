@@ -2,6 +2,7 @@ import secrets
 import logging
 from .static import serve_static
 from .response import Forbidden
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,11 @@ class CSRFMiddleware(Middleware):
     """
     Middleware to protect against Cross-Site Request Forgery (CSRF) attacks.
 
-    This middleware checks for a valid CSRF token in POST, PUT, PATCH, and DELETE
-    requests. It supports both form-based and JSON-based requests.
+    This middleware enforces CSRF protection for all state-changing HTTP methods
+    (POST, PUT, PATCH, DELETE). It requires a valid CSRF token to be present
+    in the request, either in the 'X-CSRF-Token' header or in the request body
+    (JSON or Form Data).
     """
-
     async def __call__(self, scope, receive, send):
         """
         Validates the CSRF token for state-changing HTTP methods.
@@ -53,33 +55,47 @@ class CSRFMiddleware(Middleware):
         req = scope['jsweb.request']
 
         if req.method in ("POST", "PUT", "PATCH", "DELETE"):
-            token = await self._get_token_from_request(req)
             cookie_token = req.cookies.get("csrf_token")
+            submitted_token = None
 
-            if not token or not cookie_token or not secrets.compare_digest(token, cookie_token):
-                logger.error("CSRF VALIDATION FAILED. Tokens do not match or are missing.")
+            # 1. Check header first (Best practice for AJAX/APIs)
+            submitted_token = req.headers.get("x-csrf-token")
+
+            # 2. If no header token, check the body based on content type
+            if not submitted_token:
+                content_type = req.headers.get("content-type", "")
+                
+                if "application/json" in content_type:
+                    try:
+                        # Request.json() safely returns {} for empty/invalid bodies
+                        data = await req.json()
+                        submitted_token = data.get("csrf_token")
+                    except Exception:
+                        # If JSON parsing fails, we treat it as no token found
+                        pass
+                
+                elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+                    try:
+                        # Request.form() safely returns {} for empty/non-form bodies
+                        form = await req.form()
+                        submitted_token = form.get("csrf_token")
+                    except Exception:
+                        # If form parsing fails, we treat it as no token found
+                        pass
+
+            # 3. Perform the validation
+            # Both the cookie token and the submitted token MUST be present and match.
+            if not cookie_token or not submitted_token or not secrets.compare_digest(submitted_token, cookie_token):
+                logger.warning(
+                    f"CSRF validation failed for {req.method} {req.path}. "
+                    f"Cookie set: {'Yes' if cookie_token else 'No'}, "
+                    f"Token submitted: {'Yes' if submitted_token else 'No'}."
+                )
                 response = Forbidden("CSRF token missing or invalid.")
                 await response(scope, receive, send)
                 return
 
         await self.app(scope, receive, send)
-
-    async def _get_token_from_request(self, req):
-        """
-        Extracts the CSRF token from the request, handling both JSON and form data.
-        """
-        content_type = req.headers.get("content-type", "")
-        if "application/json" in content_type:
-            try:
-                data = await req.json()
-                return data.get("csrf_token")
-            except Exception:
-                # In case of malformed JSON, treat as if no token was sent
-                return None
-        else:
-            # Fallback for form data
-            form = await req.form()
-            return form.get("csrf_token")
 
 class StaticFilesMiddleware(Middleware):
     """

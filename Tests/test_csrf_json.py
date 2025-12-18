@@ -16,35 +16,51 @@ BASE_URL = "http://127.0.0.1:8000"
 
 async def run_csrf_test():
     """
-    Tests that CSRF protection works correctly for JSON endpoints.
+    Tests that CSRF protection works correctly for various request types.
     """
-    print("--- Starting CSRF JSON Test ---")
+    print("--- Starting CSRF Logic Test ---")
     async with httpx.AsyncClient(base_url=BASE_URL) as client:
         try:
-            # 1. Make a GET request to a page to get a CSRF token
+            # 1. Make a GET request to a page to get a CSRF token from the cookie
             print("Step 1: Getting CSRF token from homepage...")
             get_response = await client.get("/")
             get_response.raise_for_status()
             assert "csrf_token" in client.cookies, "CSRF token not found in cookie"
             csrf_token = client.cookies["csrf_token"]
-            print("   [PASS] CSRF token received.")
+            print(f"   [PASS] CSRF token received: {csrf_token[:10]}...")
 
-            # 2. Send a POST request to the JSON endpoint WITHOUT a CSRF token
+            # 2. Test POST without any CSRF token (should fail)
             print("\nStep 2: Testing POST to /api/test without CSRF token (expecting 403)...")
-            payload = {"message": "hello"}
-            fail_response = await client.post("/api/test", json=payload)
+            fail_response = await client.post("/api/test", json={"message": "hello"})
             assert fail_response.status_code == 403, f"Expected status 403, but got {fail_response.status_code}"
             assert "CSRF token missing or invalid" in fail_response.text
             print("   [PASS] Request was correctly forbidden.")
 
-            # 3. Send a POST request to the JSON endpoint WITH the correct CSRF token
-            print("\nStep 3: Testing POST to /api/test with CSRF token (expecting 200)...")
+            # 3. Test POST with CSRF token in JSON body (should pass)
+            print("\nStep 3: Testing POST to /api/test with CSRF token in JSON body (expecting 200)...")
             payload_with_token = {"message": "hello", "csrf_token": csrf_token}
-            success_response = await client.post("/api/test", json=payload_with_token)
-            assert success_response.status_code == 200, f"Expected status 200, but got {success_response.status_code}"
-            response_json = success_response.json()
-            assert response_json["message"] == "hello"
-            print("   [PASS] Request was successful.")
+            success_response_body = await client.post("/api/test", json=payload_with_token)
+            assert success_response_body.status_code == 200, f"Expected status 200, but got {success_response_body.status_code}"
+            assert success_response_body.json()["message"] == "hello"
+            print("   [PASS] Request with token in body was successful.")
+
+            # 4. Test POST with CSRF token in header (should pass)
+            print("\nStep 4: Testing POST to /api/test with CSRF token in header (expecting 200)...")
+            headers = {"X-CSRF-Token": csrf_token}
+            success_response_header = await client.post("/api/test", json={"message": "world"}, headers=headers)
+            assert success_response_header.status_code == 200, f"Expected status 200, but got {success_response_header.status_code}"
+            assert success_response_header.json()["message"] == "world"
+            print("   [PASS] Request with token in header was successful.")
+
+            # 5. Test empty-body POST with CSRF token in header (should pass validation, then redirect)
+            print("\nStep 5: Testing empty-body POST to /logout with CSRF token in header (expecting 302)...")
+            # Note: The /logout endpoint redirects after success, so we expect a 302
+            # We disable auto-redirects to verify the 302 status directly
+            empty_body_response = await client.post("/logout", headers=headers, follow_redirects=False)
+            
+            # If we got a 403, the CSRF check failed. If we got a 302, it passed!
+            assert empty_body_response.status_code == 302, f"Expected status 302 (Redirect), but got {empty_body_response.status_code}. (403 means CSRF failed)"
+            print("   [PASS] Empty-body request passed CSRF check and redirected.")
 
         except Exception as e:
             print(f"\n--- TEST FAILED ---")
@@ -53,7 +69,7 @@ async def run_csrf_test():
             traceback.print_exc()
             return False
 
-    print("\n--- TEST PASSED ---")
+    print("\n--- ALL CSRF TESTS PASSED ---")
     return True
 
 
@@ -89,13 +105,15 @@ def main():
         print("\nStopping test server...")
         server_process.terminate()
         # Get remaining output
-        stdout, stderr = server_process.communicate(timeout=5)
-        
-        print("\n--- Server Output ---")
-        print("STDOUT:")
-        print(stdout)
-        print("\nSTDERR:")
-        print(stderr)
+        try:
+            stdout, stderr = server_process.communicate(timeout=5)
+            print("\n--- Server Output ---")
+            print("STDOUT:")
+            print(stdout)
+            print("\nSTDERR:")
+            print(stderr)
+        except subprocess.TimeoutExpired:
+            print("Server did not terminate gracefully.")
         
         if not test_passed:
             print("\nExiting with status 1 due to test failure.")
