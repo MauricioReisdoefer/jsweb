@@ -15,17 +15,33 @@ class MethodNotAllowed(Exception):
 
 def _int_converter(value: str) -> Optional[int]:
     """
-    Converts a string to an integer. Handles negative numbers.
+    Converts a string to an integer. Handles negative numbers with validation.
 
     Args:
         value (str): The string to convert.
 
     Returns:
-        Optional[int]: The converted integer, or None if conversion fails.
+        Optional[int]: The converted integer, or None if conversion fails or out of range.
     """
-    if value.startswith('-') and value[1:].isdigit():
-        return int(value)
-    return int(value) if value.isdigit() else None
+    # Prevent excessive length inputs (DoS protection)
+    if len(value) > 15:
+        return None
+
+    try:
+        if value.startswith('-') and value[1:].isdigit():
+            result = int(value)
+        elif value.isdigit():
+            result = int(value)
+        else:
+            return None
+
+        # Validate range to prevent overflow (32-bit signed integer range)
+        if abs(result) > 2147483647:  # 2^31 - 1
+            return None
+
+        return result
+    except (ValueError, OverflowError):
+        return None
 
 
 def _float_converter(value: str) -> Optional[float]:
@@ -60,13 +76,36 @@ def _uuid_converter(value: str) -> Optional[uuid.UUID]:
         return None
 
 
-def _str_converter(value: str) -> str:
-    """A passthrough converter for string parameters."""
+def _str_converter(value: str) -> Optional[str]:
+    """
+    A converter for string parameters with length validation.
+
+    Args:
+        value (str): The string to validate.
+
+    Returns:
+        Optional[str]: The string if valid, None if too long.
+    """
+    # Limit string parameter length to prevent DoS
+    if len(value) > 1000:
+        return None
     return value
 
 
-def _path_converter(value: str) -> str:
-    """A passthrough converter for path parameters, which can include slashes."""
+def _path_converter(value: str) -> Optional[str]:
+    """
+    A converter for path parameters with length validation.
+    Can include slashes.
+
+    Args:
+        value (str): The path string to validate.
+
+    Returns:
+        Optional[str]: The path if valid, None if too long.
+    """
+    # Limit path parameter length to prevent DoS
+    if len(value) > 2000:
+        return None
     return value
 
 

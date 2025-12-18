@@ -1,6 +1,27 @@
-# Contributing to JsWeb.
+# Contributing to JsWeb
 
 First off, thank you for considering contributing. It's people like you that make open-source such a great community. Any contributions you make are **greatly appreciated**.
+
+## Development Setup
+
+To contribute to JsWeb, you'll need to set up your development environment:
+
+```bash
+# 1. Fork and clone the repository
+git clone https://github.com/Jsweb-Tech/jsweb.git
+cd jsweb
+
+# 2. Create a virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # macOS/Linux
+
+# 3. Install JsWeb in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# 4. Install pre-commit hooks
+pre-commit install
+```
 
 ## How to Contribute
 
@@ -15,6 +36,7 @@ We use a standard workflow for contributions. If you have an improvement, please
 
 3.  **Make Your Changes and Commit**
     * Write your code and make sure to add comments and docstrings where necessary.
+    * Run tests and linters before committing (see below).
     * Commit your changes with a clear and descriptive commit message.
     * `git commit -m 'feat: Add some AmazingFeature'`
 
@@ -25,6 +47,36 @@ We use a standard workflow for contributions. If you have an improvement, please
 5.  **Open a Pull Request**
     * Go to the original repository and you will see a prompt to create a Pull Request from your new branch.
     * Provide a clear title and description for your changes, explaining what you've added or fixed.
+    * Fill out the PR template completely.
+
+## Testing & Code Quality
+
+Before submitting your PR, ensure your code passes all checks:
+
+```bash
+# Run tests
+pytest Tests/
+
+# Run code formatters
+black .
+isort .
+
+# Run linters
+flake8 jsweb/
+
+# Or run all pre-commit checks at once
+pre-commit run --all-files
+```
+
+## Branch Protection
+
+The `main` branch is protected and requires:
+* ✅ Pull request with at least 1-2 approving reviews
+* ✅ All CI checks must pass (tests, linting, type checking)
+* ✅ Branch must be up-to-date with main
+* ✅ Code owner review for core changes
+
+**Note:** You cannot push directly to `main`. All changes must go through pull requests.
 
 ## Reporting Bugs
 

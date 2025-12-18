@@ -115,6 +115,7 @@ class Response:
         self.body = body
         self.status_code = status_code
         self.headers = headers or {}
+        self._cookies = []  # Store cookies separately to support multiple Set-Cookie headers
 
         final_content_type = content_type or self.default_content_type
         if "content-type" not in self.headers:
@@ -162,10 +163,8 @@ class Response:
         if httponly:
             cookie_val += "; HttpOnly"
 
-        if "Set-Cookie" in self.headers:
-            self.headers["Set-Cookie"] += f"\n{cookie_val}"
-        else:
-            self.headers["Set-Cookie"] = cookie_val
+        # Store cookies separately to properly support multiple Set-Cookie headers
+        self._cookies.append(cookie_val)
 
     def delete_cookie(self, key: str, path: str = "/", domain: str = None):
         """
@@ -194,10 +193,17 @@ class Response:
         if "content-length" not in self.headers:
             self.headers["content-length"] = str(len(body_bytes))
 
+        # Build headers list, properly handling multiple Set-Cookie headers
+        headers_list = [[k.encode(), v.encode()] for k, v in self.headers.items()]
+
+        # Add each cookie as a separate Set-Cookie header (proper HTTP specification)
+        for cookie in self._cookies:
+            headers_list.append([b"set-cookie", cookie.encode()])
+
         await send({
             "type": "http.response.start",
             "status": self.status_code,
-            "headers": [[k.encode(), v.encode()] for k, v in self.headers.items()],
+            "headers": headers_list,
         })
         await send({
             "type": "http.response.body",

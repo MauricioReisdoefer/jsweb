@@ -5,6 +5,9 @@ from urllib.parse import parse_qs
 
 from werkzeug.formparser import parse_form_data
 
+# Maximum request body size (10MB default, configurable)
+MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
+
 
 class Request:
     """
@@ -78,6 +81,7 @@ class Request:
 
         Raises:
             RuntimeError: If the stream was already consumed by `stream()`.
+            ValueError: If the request body exceeds MAX_REQUEST_BODY_SIZE.
         """
         if self._body is None:
             if self._is_stream_consumed:
@@ -86,8 +90,21 @@ class Request:
                     "Always use body() if you need to access the body multiple times."
                 )
             chunks = []
+            total_size = 0
+
             async for chunk in self.stream():
+                chunk_size = len(chunk)
+                total_size += chunk_size
+
+                
+                if total_size > MAX_REQUEST_BODY_SIZE:
+                    raise ValueError(
+                        f"Request body size ({total_size} bytes) exceeds maximum allowed "
+                        f"size of {MAX_REQUEST_BODY_SIZE} bytes"
+                    )
+
                 chunks.append(chunk)
+
             self._body = b"".join(chunks)
         return self._body
 

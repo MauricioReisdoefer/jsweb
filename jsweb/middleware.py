@@ -2,7 +2,6 @@ import secrets
 import logging
 from .static import serve_static
 from .response import Forbidden
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +57,13 @@ class CSRFMiddleware(Middleware):
             cookie_token = req.cookies.get("csrf_token")
             submitted_token = None
 
-            # 1. Check header first (Best practice for AJAX/APIs)
+            
             submitted_token = req.headers.get("x-csrf-token")
 
-            # 2. If no header token, check the body based on content type
+        
             if not submitted_token:
                 content_type = req.headers.get("content-type", "")
-                
+
                 if "application/json" in content_type:
                     try:
                         # Request.json() safely returns {} for empty/invalid bodies
@@ -73,7 +72,7 @@ class CSRFMiddleware(Middleware):
                     except Exception:
                         # If JSON parsing fails, we treat it as no token found
                         pass
-                
+
                 elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
                     try:
                         # Request.form() safely returns {} for empty/non-form bodies
@@ -83,11 +82,14 @@ class CSRFMiddleware(Middleware):
                         # If form parsing fails, we treat it as no token found
                         pass
 
-            # 3. Perform the validation
+            
             # Both the cookie token and the submitted token MUST be present and match.
             if not cookie_token or not submitted_token or not secrets.compare_digest(submitted_token, cookie_token):
+                # Log CSRF failure with context (but never log the actual tokens)
+                client_ip = scope.get("client", ["unknown"])[0]
                 logger.warning(
-                    f"CSRF validation failed for {req.method} {req.path}. "
+                    f"CSRF validation failed - Method: {req.method}, "
+                    f"Path: {req.path}, Client IP: {client_ip}, "
                     f"Cookie set: {'Yes' if cookie_token else 'No'}, "
                     f"Token submitted: {'Yes' if submitted_token else 'No'}."
                 )
@@ -170,7 +172,7 @@ class DBSessionMiddleware(Middleware):
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-            
+
         from .database import db_session
         try:
             await self.app(scope, receive, send)
@@ -180,3 +182,69 @@ class DBSessionMiddleware(Middleware):
             raise
         finally:
             db_session.remove()
+
+
+class SecurityHeadersMiddleware(Middleware):
+    """
+    Middleware to inject security headers into all HTTP responses.
+
+    This middleware adds essential security headers to protect against common web
+    vulnerabilities including XSS, clickjacking, MIME sniffing, and more.
+
+    Headers added:
+    - X-Content-Type-Options: nosniff
+    - X-Frame-Options: DENY
+    - X-XSS-Protection: 1; mode=block
+    - Strict-Transport-Security: max-age=31536000; includeSubDomains
+    - Referrer-Policy: strict-origin-when-cross-origin
+    - Content-Security-Policy: default-src 'self'
+
+    Args:
+        app: The ASGI application to wrap.
+        custom_headers (dict, optional): Custom security headers to override defaults.
+    """
+
+    DEFAULT_HEADERS = {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-xss-protection": "1; mode=block",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        # Conservative CSP - can be customized per-application
+        "content-security-policy": "default-src 'self'",
+    }
+
+    def __init__(self, app, custom_headers=None):
+        super().__init__(app)
+        self.headers = {**self.DEFAULT_HEADERS, **(custom_headers or {})}
+
+    async def __call__(self, scope, receive, send):
+        """
+        Injects security headers into the HTTP response.
+
+        Args:
+            scope (dict): The ASGI connection scope.
+            receive (callable): An awaitable callable to receive events.
+            send (callable): An awaitable callable to send events.
+        """
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                # Add security headers to response
+                headers = list(message.get("headers", []))
+
+                # Only add headers if they don't already exist
+                existing_header_names = {name.decode().lower() for name, _ in headers}
+
+                for header_name, header_value in self.headers.items():
+                    if header_name.lower() not in existing_header_names:
+                        headers.append([header_name.encode(), header_value.encode()])
+
+                message["headers"] = headers
+
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

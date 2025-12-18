@@ -109,7 +109,9 @@ class JsWebApp:
                 raise TypeError(f"View function did not return a Response object (got {type(response).__name__})")
 
             if hasattr(req, 'new_csrf_token_generated') and req.new_csrf_token_generated:
-                response.set_cookie("csrf_token", req.csrf_token, httponly=False, samesite='Lax')
+                # Set CSRF token cookie with strict security settings
+                # Note: httponly=False is required so JavaScript can read it for AJAX requests
+                response.set_cookie("csrf_token", req.csrf_token, httponly=False, samesite='Strict', secure=False)
 
             await response(scope, receive, send)
             return
