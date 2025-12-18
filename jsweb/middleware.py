@@ -2,7 +2,6 @@ import secrets
 import logging
 from .static import serve_static
 from .response import Forbidden
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +57,10 @@ class CSRFMiddleware(Middleware):
             cookie_token = req.cookies.get("csrf_token")
             submitted_token = None
 
-            # 1. Check header first (Best practice for AJAX/APIs)
+            
             submitted_token = req.headers.get("x-csrf-token")
 
-            # 2. If no header token, check the body based on content type
+        
             if not submitted_token:
                 content_type = req.headers.get("content-type", "")
 
@@ -83,7 +82,7 @@ class CSRFMiddleware(Middleware):
                         # If form parsing fails, we treat it as no token found
                         pass
 
-            # 3. Perform the validation
+            
             # Both the cookie token and the submitted token MUST be present and match.
             if not cookie_token or not submitted_token or not secrets.compare_digest(submitted_token, cookie_token):
                 # Log CSRF failure with context (but never log the actual tokens)
